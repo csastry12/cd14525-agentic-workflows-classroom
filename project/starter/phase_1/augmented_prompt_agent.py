@@ -1,4 +1,5 @@
 # TODO: 1 - Import the AugmentedPromptAgent class
+from workflow_agents import AugmentedPromptAgent
 import os
 from dotenv import load_dotenv
 
@@ -6,14 +7,21 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Retrieve OpenAI API key from environment variables
-openai_api_key = os.getenv("OPENAI_API_KEY")
 
-prompt = "What is the capital of France?"
+openai_api_key = os.getenv('OPENAI_API_KEY')
+base_url =  os.getenv('OPENAI_BASE_URL')
+
+# prompt = "What is the capital of France?"
 persona = "You are a college professor; your answers always start with: 'Dear students,'"
 
 # TODO: 2 - Instantiate an object of AugmentedPromptAgent with the required parameters
 
+augmented_prompt_agent = AugmentedPromptAgent(openai_api_key, base_url, persona)
+
 # TODO: 3 - Send the 'prompt' to the agent and store the response in a variable named 'augmented_agent_response'
+
+prompt = "Dear Professor, can you please give a concise definition of Agentic AI"
+augmented_agent_response = augmented_prompt_agent.respond(prompt)
 
 # Print the agent's response
 print(augmented_agent_response)
@@ -21,3 +29,6 @@ print(augmented_agent_response)
 # TODO: 4 - Add a comment explaining:
 # - What knowledge the agent likely used to answer the prompt.
 # - How the system prompt specifying the persona affected the agent's response.
+
+# Indeed the system prompt provided a more focued response as a learned professor would 
+# address his/her students

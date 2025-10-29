@@ -1,4 +1,4 @@
-from workflow_agents.base_agents import RAGKnowledgePromptAgent
+from workflow_agents import RAGKnowledgePromptAgent
 import os
 from dotenv import load_dotenv
 
@@ -6,10 +6,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Define the parameters for the agent
-openai_api_key = os.getenv("OPENAI_API_KEY")
+openai_api_key = os.getenv('OPENAI_API_KEY')
+base_url =  os.getenv('OPENAI_BASE_URL')
 
 persona = "You are a college professor, yous answer always starts with: Dear students,"
-RAG_knowledge_prompt_agent = RAGKnowledgePromptAgent(openai_api_key, persona, 500, 200)
+RAG_knowledge_prompt_agent = RAGKnowledgePromptAgent(openai_api_key, base_url, persona, 500, 200)
 
 knowledge_text = """
 In the historic city of Boston, Clara, a marine biologist and science communicator, began each morning analyzing sonar data to track whale migration patterns along the Atlantic coast.

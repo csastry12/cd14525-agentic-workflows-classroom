@@ -1,4 +1,5 @@
 # TODO: 1 - import the OpenAI class from the openai library
+from openai import OpenAI
 import numpy as np
 import pandas as pd
 import re
@@ -6,90 +7,111 @@ import csv
 import uuid
 from datetime import datetime
 
-'''
 # DirectPromptAgent class definition
+
 class DirectPromptAgent:
     
-    def __init__(self, openai_api_key):
+    def __init__(self, openai_api_key, base_url):
         # Initialize the agent
         # TODO: 2 - Define an attribute named openai_api_key to store the OpenAI API key provided to this class.
 
+        self.openai_api_key = openai_api_key
+        self.base_url = base_url
+
     def respond(self, prompt):
         # Generate a response using the OpenAI API
-        client = OpenAI(api_key=self.openai_api_key)
+        client = OpenAI(api_key=self.openai_api_key, base_url=self.base_url)
         response = client.chat.completions.create(
-            model=# TODO: 3 - Specify the model to use (gpt-3.5-turbo)
-            messages=[
-                # TODO: 4 - Provide the user's prompt here. Do not add a system prompt.
-            ],
+            model = "gpt-3.5-turbo", # TODO: 3 - Specify the model to use (gpt-3.5-turbo)
+            # TODO: 4 - Provide the user's prompt here. Do not add a system prompt.
+            messages=[{"role": "user", "content": prompt}],
             temperature=0
         )
+
         # TODO: 5 - Return only the textual content of the response (not the full JSON response).
-'''
+
+        return response.choices[0].message.content
         
-'''
 # AugmentedPromptAgent class definition
+
 class AugmentedPromptAgent:
-    def __init__(self, openai_api_key, persona):
+    def __init__(self, openai_api_key, base_url, persona):
+
         """Initialize the agent with given attributes."""
         # TODO: 1 - Create an attribute for the agent's persona
+
         self.openai_api_key = openai_api_key
+        self.base_url = base_url
+        self.persona = persona
 
     def respond(self, input_text):
         """Generate a response using OpenAI API."""
-        client = OpenAI(api_key=self.openai_api_key)
+        client = OpenAI(api_key=self.openai_api_key, base_url=self.base_url)
 
         # TODO: 2 - Declare a variable 'response' that calls OpenAI's API for a chat completion.
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
                 # TODO: 3 - Add a system prompt instructing the agent to assume the defined persona and explicitly forget previous context.
+                {"role": "system", "content": self.persona},
                 {"role": "user", "content": input_text}
             ],
+
             temperature=0
         )
 
-        return  # TODO: 4 - Return only the textual content of the response, not the full JSON payload.
-'''
+        return  response.choices[0].message.content # TODO: 4 - Return only the textual content of the response, not the full JSON payload.
 
-'''
 # KnowledgeAugmentedPromptAgent class definition
+
 class KnowledgeAugmentedPromptAgent:
-    def __init__(self, openai_api_key, persona, knowledge):
+    def __init__(self, openai_api_key, base_url, persona, knowledge):
         """Initialize the agent with provided attributes."""
         self.persona = persona
         # TODO: 1 - Create an attribute to store the agent's knowledge.
         self.openai_api_key = openai_api_key
+        self.base_url = base_url
+        self.knowledge = knowledge
 
     def respond(self, input_text):
         """Generate a response using the OpenAI API."""
-        client = OpenAI(api_key=self.openai_api_key)
+        client = OpenAI(api_key=self.openai_api_key, base_url=self.base_url)
+        sys_prompt = f"""
+        You are _persona_ knowledge-based assistant. Forget all previous context. Your persona is
+        {self.persona}
+
+        Use only the following knowledge to answer, do not use your own knowledge:
+        {self.knowledge}
+
+        Answer the prompt based on this knowledge, not your own.
+
+        """
+                
+        # TODO: 3 - Add the user's input prompt here as a user message.
+
+        user_message =input_text
+
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
-            messages=[
-                # TODO: 2 - Construct a system message including:
-                #           - The persona with the following instruction:
-                #             "You are _persona_ knowledge-based assistant. Forget all previous context."
-                #           - The provided knowledge with this instruction:
-                #             "Use only the following knowledge to answer, do not use your own knowledge: _knowledge_"
-                #           - Final instruction:
-                #             "Answer the prompt based on this knowledge, not your own."
-                
-                # TODO: 3 - Add the user's input prompt here as a user message.
+            messages=[{"role": "system", "content": sys_prompt},
+                {"role": "user", "content": user_message}
             ],
+
             temperature=0
         )
+
         return response.choices[0].message.content
-'''
+
 
 # RAGKnowledgePromptAgent class definition
+
 class RAGKnowledgePromptAgent:
     """
     An agent that uses Retrieval-Augmented Generation (RAG) to find knowledge from a large corpus
     and leverages embeddings to respond to prompts based solely on retrieved information.
     """
 
-    def __init__(self, openai_api_key, persona, chunk_size=2000, chunk_overlap=100):
+    def __init__(self, openai_api_key, base_url, persona, chunk_size=2000, chunk_overlap=100):
         """
         Initializes the RAGKnowledgePromptAgent with API credentials and configuration settings.
 
@@ -103,6 +125,7 @@ class RAGKnowledgePromptAgent:
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
         self.openai_api_key = openai_api_key
+        self.base_url = base_url
         self.unique_filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}.csv"
 
     def get_embedding(self, text):
@@ -115,7 +138,7 @@ class RAGKnowledgePromptAgent:
         Returns:
         list: The embedding vector.
         """
-        client = OpenAI(base_url="https://openai.vocareum.com/v1", api_key=self.openai_api_key)
+        client = OpenAI(api_key=self.openai_api_key, base_url=self.base_url)
         response = client.embeddings.create(
             model="text-embedding-3-large",
             input=text,
@@ -140,26 +163,20 @@ class RAGKnowledgePromptAgent:
     def chunk_text(self, text):
         """
         Splits text into manageable chunks, attempting natural breaks.
-
         Parameters:
         text (str): Text to split into chunks.
-
         Returns:
         list: List of dictionaries containing chunk metadata.
         """
         separator = "\n"
         text = re.sub(r'\s+', ' ', text).strip()
-
         if len(text) <= self.chunk_size:
             return [{"chunk_id": 0, "text": text, "chunk_size": len(text)}]
-
         chunks, start, chunk_id = [], 0, 0
-
         while start < len(text):
             end = min(start + self.chunk_size, len(text))
             if separator in text[start:end]:
                 end = start + text[start:end].rindex(separator) + len(separator)
-
             chunks.append({
                 "chunk_id": chunk_id,
                 "text": text[start:end],
@@ -167,16 +184,19 @@ class RAGKnowledgePromptAgent:
                 "start_char": start,
                 "end_char": end
             })
-
-            start = end - self.chunk_overlap
+            # Fix: Check if we've reached the end of the text
+            if end == len(text):
+                break
+            else:
+                start = end - self.chunk_overlap
+            
             chunk_id += 1
-
         with open(f"chunks-{self.unique_filename}", 'w', newline='', encoding='utf-8') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=["text", "chunk_size"])
             writer.writeheader()
             for chunk in chunks:
                 writer.writerow({k: chunk[k] for k in ["text", "chunk_size"]})
-
+        self.calculate_embeddings()
         return chunks
 
     def calculate_embeddings(self):
@@ -220,36 +240,51 @@ class RAGKnowledgePromptAgent:
 
         return response.choices[0].message.content
 
-'''
 class EvaluationAgent:
     
-    def __init__(self, openai_api_key, persona, evaluation_criteria, worker_agent, max_interactions):
+    def __init__(self, openai_api_key, base_url, persona, evaluation_criteria, worker_agent, max_interactions):
         # Initialize the EvaluationAgent with given attributes.
         # TODO: 1 - Declare class attributes here
 
+        self.openai_api_key = openai_api_key
+        self.base_url = base_url
+        self.persona = persona
+        self.evaluation_criteria = evaluation_criteria
+        self.worker_agent = worker_agent
+        self.max_interactions = max_interactions
+
     def evaluate(self, initial_prompt):
         # This method manages interactions between agents to achieve a solution.
-        client = OpenAI(api_key=self.openai_api_key)
+        client = OpenAI(api_key=self.openai_api_key, base_url = self.base_url)
         prompt_to_evaluate = initial_prompt
 
-        for i in # TODO: 2 - Set loop to iterate up to the maximum number of interactions:
+        for i in range(self.max_interactions): # TODO: 2 - Set loop to iterate up to the maximum number of interactions:
             print(f"\n--- Interaction {i+1} ---")
 
             print(" Step 1: Worker agent generates a response to the prompt")
             print(f"Prompt:\n{prompt_to_evaluate}")
-            response_from_worker = # TODO: 3 - Obtain a response from the worker agent
+            response_from_worker = self.worker_agent.respond(prompt_to_evaluate)
+            
+            # TODO: 3 - Obtain a response from the worker agent
             print(f"Worker Agent Response:\n{response_from_worker}")
 
             print(" Step 2: Evaluator agent judges the response")
             eval_prompt = (
                 f"Does the following answer: {response_from_worker}\n"
-                f"Meet this criteria: "  # TODO: 4 - Insert evaluation criteria here
+                f"Meet this criteria: {self.evaluation_criteria}\n"  # TODO: 4 - Insert evaluation criteria here
                 f"Respond Yes or No, and the reason why it does or doesn't meet the criteria."
             )
+
             response = client.chat.completions.create(
                 model="gpt-3.5-turbo",
-                messages=# TODO: 5 - Define the message structure sent to the LLM for evaluation (use temperature=0)
+                # TODO: 5 - Define the message structure sent to the LLM for evaluation (use temperature=0)
+                messages=[{"role": "system", "content": self.persona},
+                {"role": "user", "content": eval_prompt}
+                ],
+
+                temperature = 0.0
             )
+
             evaluation = response.choices[0].message.content.strip()
             print(f"Evaluator Agent Evaluation:\n{evaluation}")
 
@@ -262,14 +297,21 @@ class EvaluationAgent:
                 instruction_prompt = (
                     f"Provide instructions to fix an answer based on these reasons why it is incorrect: {evaluation}"
                 )
+
                 response = client.chat.completions.create(
                     model="gpt-3.5-turbo",
-                    messages=# TODO: 6 - Define the message structure sent to the LLM to generate correction instructions (use temperature=0)
+                    # TODO: 6 - Define the message structure sent to the LLM to generate correction instructions (use temperature=0)
+                    messages=[{"role": "system", "content": self.persona},   
+                    {"role": "user", "content": instruction_prompt}
+                ],
+                    temperature = 0.0
                 )
+
                 instructions = response.choices[0].message.content.strip()
                 print(f"Instructions to fix:\n{instructions}")
 
                 print(" Step 5: Send feedback to worker agent for refinement")
+
                 prompt_to_evaluate = (
                     f"The original prompt was: {initial_prompt}\n"
                     f"The response to that prompt was: {response_from_worker}\n"
@@ -278,32 +320,47 @@ class EvaluationAgent:
                 )
         return {
             # TODO: 7 - Return a dictionary containing the final response, evaluation, and number of iterations
+            
+            "final response": response_from_worker,
+            "evaluation": evaluation,
+            "number of iterations": i+1
         }   
-'''
 
-'''
 class RoutingAgent():
 
-    def __init__(self, openai_api_key, agents):
+    def __init__(self, openai_api_key, base_url, agents):
         # Initialize the agent with given attributes
         self.openai_api_key = openai_api_key
+        self.base_url = base_url
+
         # TODO: 1 - Define an attribute to hold the agents, call it agents
 
+        self.agents = agents
+
     def get_embedding(self, text):
-        client = OpenAI(api_key=self.openai_api_key)
+        client = OpenAI(api_key=self.openai_api_key, base_url = self.base_url)
+        
         # TODO: 2 - Write code to calculate the embedding of the text using the text-embedding-3-large model
         # Extract and return the embedding vector from the response
+
+        response = client.embeddings.create(
+        model="text-embedding-3-large",  # model for high-dimensional embeddings
+        input=text                       # the text to embed
+        )
+
         embedding = response.data[0].embedding
         return embedding 
 
     # TODO: 3 - Define a method to route user prompts to the appropriate agent
+    def rout_prompts(self, user_input):
         # TODO: 4 - Compute the embedding of the user input prompt
-        input_emb = 
+        input_emb = self.get_embedding(user_input)
         best_agent = None
         best_score = -1
 
         for agent in self.agents:
             # TODO: 5 - Compute the embedding of the agent description
+            agent_emb = self.get_embedding(agent['description'])
             if agent_emb is None:
                 continue
 
@@ -312,31 +369,63 @@ class RoutingAgent():
 
             # TODO: 6 - Add logic to select the best agent based on the similarity score between the user prompt and the agent descriptions
 
+            if similarity > best_score:
+
+                best_agent = agent
+                best_score = similarity
+
         if best_agent is None:
             return "Sorry, no suitable agent could be selected."
 
         print(f"[Router] Best agent: {best_agent['name']} (score={best_score:.3f})")
         return best_agent["func"](user_input)
 
-'''
-
-'''
 class ActionPlanningAgent:
 
-    def __init__(self, openai_api_key, knowledge):
+    def __init__(self, openai_api_key, base_url, knowledge):
         # TODO: 1 - Initialize the agent attributes here
+
+        self.openai_api_key = openai_api_key
+        self.base_url = base_url
+        self.knowledge = knowledge
 
     def extract_steps_from_prompt(self, prompt):
 
         # TODO: 2 - Instantiate the OpenAI client using the provided API key
+
+        client = OpenAI(api_key=self.openai_api_key, base_url = self.base_url)
+
         # TODO: 3 - Call the OpenAI API to get a response from the "gpt-3.5-turbo" model.
         # Provide the following system prompt along with the user's prompt:
-        # "You are an action planning agent. Using your knowledge, you extract from the user prompt the steps requested to complete the action the user is asking for. You return the steps as a list. Only return the steps in your knowledge. Forget any previous context. This is your knowledge: {pass the knowledge here}"
+        # "You are an action planning agent. Using your knowledge, you extract from the user prompt the 
+        # steps requested to complete the action the user is asking for. You return the steps as a list. 
+        # Only return the steps in your knowledge. Forget any previous context. This is your knowledge: 
+        # {pass the knowledge here}"
 
-        response_text = ""  # TODO: 4 - Extract the response text from the OpenAI API response
+        sys_prompt = f"""
+        "You are an action planning agent. Using your knowledge, you extract from the user prompt the 
+        steps requested to complete the action the user is asking for. You return the steps as a list. 
+        Only return the steps in your knowledge. Forget any previous context. This is your knowledge: 
+        {self.knowledge}"
+
+        """
+
+        messages=[{"role": "system", "content": sys_prompt},   
+                    {"role": "user", "content": prompt}]
+                   
+        # TODO: 4 - Extract the response text from the OpenAI API response
+
+        response = client.chat.completions.create(
+                    model="gpt-3.5-turbo",
+                    messages=messages,
+                    temperature = 0.0
+                )
+
+        # print(f"response = {response}")
+
+        response_text = response.choices[0].message.content.strip()  
 
         # TODO: 5 - Clean and format the extracted steps by removing empty lines and unwanted text
         steps = response_text.split("\n")
 
         return steps
-'''
